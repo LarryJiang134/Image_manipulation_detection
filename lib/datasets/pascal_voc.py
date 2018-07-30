@@ -39,6 +39,7 @@ class pascal_voc(imdb):
         self._class_to_ind = dict(list(zip(self.classes, list(range(self.num_classes)))))
         self._image_ext = '.jpg'
         self._image_index = self._load_image_set_index()
+        self._seg_index = self._load_seg_set_index()
         # Default to roidb handler
         self._roidb_handler = self.gt_roidb
         self._salt = str(uuid.uuid4())
@@ -76,14 +77,14 @@ class pascal_voc(imdb):
         """
         Return the absolute path to image i segmentation ground truth.
         """
-        return self.seg_path_from_index(self._image_index[i])
+        return self.seg_path_from_index(self._seg_index[i])
 
     def seg_path_from_index(self, index):
         """
         Construct an segmentation ground truth image path from the image's "index" identifier.
         """
         image_path = os.path.join(self._data_path, 'SegmentationObject',
-                                  index + self._image_ext)
+                                  index + '.png')
         assert os.path.exists(image_path), \
             'Path does not exist: {}'.format(image_path)
         return image_path
@@ -93,7 +94,7 @@ class pascal_voc(imdb):
         Load the indexes listed in this dataset's image set file.
         """
         # Example path to image set file:
-        # self._devkit_path + /VOCdevkit2007/VOC2007/ImageSets/Main/val.txt
+        # self._devkit_path + /VOCdevkit2007/VOC2007/ImageSets/Main/trainval.txt
         image_set_file = os.path.join(self._data_path, 'ImageSets', 'Main',
                                       self._image_set + '.txt')
         assert os.path.exists(image_set_file), \
@@ -101,6 +102,20 @@ class pascal_voc(imdb):
         with open(image_set_file) as f:
             image_index = [x.strip() for x in f.readlines()]
         return image_index
+
+    def _load_seg_set_index(self):
+        """
+        Load the indexes listed in this dataset's image set file.
+        """
+        # Example path to image set file:
+        # self._devkit_path + /VOCdevkit2007/VOC2007/ImageSets/Segmentation/trainval.txt
+        image_set_file = os.path.join(self._data_path, 'ImageSets', 'Segmentation',
+                                      self._image_set + '.txt')
+        assert os.path.exists(image_set_file), \
+            'Path does not exist: {}'.format(image_set_file)
+        with open(image_set_file) as f:
+            seg_index = [x.strip() for x in f.readlines()]
+        return seg_index
 
     def _get_default_path(self):
         """

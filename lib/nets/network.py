@@ -261,7 +261,6 @@ class Network(object):
     def create_architecture(self, sess, mode, num_classes, tag=None, anchor_scales=(8, 16, 32), anchor_ratios=(0.5, 1, 2)):
         self._image = tf.placeholder(tf.float32, shape=[self._batch_size, None, None, 3])
         # for noise
-        self._image_forNoise = tf.placeholder(tf.float32, shape=[self._batch_size, None, None, 3])
         self._im_info = tf.placeholder(tf.float32, shape=[self._batch_size, 3])
         self._gt_boxes = tf.placeholder(tf.float32, shape=[None, 5])
         self._tag = tag
@@ -329,7 +328,7 @@ class Network(object):
 
         return layers_to_output
 
-    def get_variables_to_restore(self, variables, var_keep_dic):
+    def get_variables_to_restore(self, variables, var_keep_dic, sess, pretrained_model):
         raise NotImplementedError
 
     def fix_variables(self, sess, pretrained_model):

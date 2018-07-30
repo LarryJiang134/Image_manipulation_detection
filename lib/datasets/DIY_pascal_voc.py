@@ -2,7 +2,7 @@
 # Fast R-CNN
 # Copyright (c) 2015 Microsoft
 # Licensed under The MIT License [see LICENSE for details]
-# Written by Ross Girshick and Xinlei Chen
+# Written by Hangyan Jiang
 # --------------------------------------------------------
 from __future__ import absolute_import
 from __future__ import division
@@ -22,13 +22,13 @@ from lib.datasets.imdb import imdb
 from .voc_eval import voc_eval
 
 
-class pascal_voc(imdb):
+class DIY_pascal_voc(imdb):
     def __init__(self, image_set, year, devkit_path=None):
-        imdb.__init__(self, 'voc_' + year + '_' + image_set)
+        imdb.__init__(self, 'DIY_dataset')
         self._year = year
         self._image_set = image_set
-        self._devkit_path = 'DIY_dataset'
-        self._data_path = os.path.join(self._devkit_path, 'VOC' + self._year)
+        self._devkit_path = 'data/DIY_dataset'
+        self._data_path = os.path.join(self._devkit_path, 'VOC' + '2007')
         self._classes = ('__background__',  # always index 0
                          'tampered')
         self._class_to_ind = dict(list(zip(self.classes, list(range(self.num_classes)))))
@@ -132,14 +132,7 @@ class pascal_voc(imdb):
         filename = os.path.join(self._data_path, 'Annotations', index + '.xml')
         tree = ET.parse(filename)
         objs = tree.findall('object')
-        if not self.config['use_diff']:
-            # Exclude the samples labeled as difficult
-            non_diff_objs = [
-                obj for obj in objs if int(obj.find('difficult').text) == 0]
-            # if len(non_diff_objs) != len(objs):
-            #     print 'Removed {} difficult objects'.format(
-            #         len(objs) - len(non_diff_objs))
-            objs = non_diff_objs
+
         num_objs = len(objs)
 
         boxes = np.zeros((num_objs, 4), dtype=np.uint16)

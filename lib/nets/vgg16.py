@@ -1,7 +1,7 @@
 # --------------------------------------------------------
-# Tensorflow Faster R-CNN
+# Tensorflow Two Stream Faster R-CNN
 # Licensed under The MIT License [see LICENSE for details]
-# Written by Xinlei Chen
+# Written by Hangyan Jiang
 # --------------------------------------------------------
 
 
@@ -54,6 +54,7 @@ class vgg16(Network):
 
             # Build RGB stream head
             net = self.build_head(is_training)
+
             # Build Noise stream head
             net2 = self.build_head_forNoise(is_training, initializer, initializer_srm)
 
@@ -111,6 +112,24 @@ class vgg16(Network):
         #         # fix the vgg16 noise stream variables
         #         restorer = tf.train.Saver(noise_variable)
         #         restorer.restore(sess, pretrained_model)
+
+
+            #     name = v.name.split('/')
+            #     if len(name) < 4 or (name[1] != 'conv1' and name[1] != 'conv2'):
+            #         continue
+            #     name[1] += 'n'
+            #     name[2] = name[1] + name[2][len(name[1]) - 1:]
+            #     noise_counterpart = name[0] + '/' + name[1] + '/' + name[2] + '/' + name[3]
+            #     for u in variables:
+            #         if u.name == noise_counterpart:
+            #             noise_variable[v.name.split(':')[0]] = u
+            #             print('Variables restored: %s' % u.name)
+            #
+            # with tf.variable_scope('Restore_Noise_Variables'):
+            #     with tf.device("/cpu:0"):
+            #         # fix the vgg16 noise stream variables
+            #         restorer = tf.train.Saver(noise_variable)
+            #         restorer.restore(sess, pretrained_model)
 
         return variables_to_restore
 
@@ -189,16 +208,22 @@ class vgg16(Network):
 
     def build_head_forNoise(self, is_training, initializer, initializer_srm):
 
+        def truncate_2(x):
+            neg = ((x + 2) + abs(x + 2)) / 2 - 2
+            return -(2 - neg + abs(2 - neg)) / 2 + 2
+
         # Main network
         # Layer SRM
-        net = slim.conv2d(self._image, 3, [5, 5], trainable=False, weights_initializer=initializer_srm, padding='SAME', stride=1, scope='srm')
+        net = slim.conv2d(self._image, 3, [5, 5], trainable=False, weights_initializer=initializer_srm,
+                          activation_fn=None, padding='SAME', stride=1, scope='srm')
+        net = truncate_2(net)
 
         # Layer  1
-        net = slim.repeat(net, 2, slim.conv2d, 64, [3, 3], trainable=False, weights_initializer=initializer, scope='conv1n')
+        net = slim.repeat(net, 2, slim.conv2d, 64, [3, 3], trainable=is_training, weights_initializer=initializer, scope='conv1n')
         net = slim.max_pool2d(net, [2, 2], padding='SAME', scope='pool1n')
 
         # Layer 2
-        net = slim.repeat(net, 2, slim.conv2d, 128, [3, 3], trainable=False, weights_initializer=initializer, scope='conv2n')
+        net = slim.repeat(net, 2, slim.conv2d, 128, [3, 3], trainable=is_training, weights_initializer=initializer, scope='conv2n')
         net = slim.max_pool2d(net, [2, 2], padding='SAME', scope='pool2n')
 
         # Layer 3

@@ -13,10 +13,11 @@ from lib.nets.vgg16 import vgg16
 from lib.utils.timer import Timer
 
 try:
-  import cPickle as pickle
+    import cPickle as pickle
 except ImportError:
-  import pickle
+    import pickle
 import os
+
 
 def get_training_roidb(imdb):
     """Returns a roidb (Region of Interest database) for use in training."""
@@ -66,17 +67,17 @@ class Train:
         else:
             raise NotImplementedError
 
-        self.imdb, self.roidb = combined_roidb("voc_2007_trainval")
+        self.imdb, self.roidb = combined_roidb("DIY_dataset")
 
         self.data_layer = RoIDataLayer(self.roidb, self.imdb.num_classes)
         self.output_dir = cfg.get_output_dir(self.imdb, 'default')
-
 
     def train(self):
 
         # Create session
         tfconfig = tf.ConfigProto(allow_soft_placement=True)  # allow_soft_placement = true : select GPU automatically
         tfconfig.gpu_options.allow_growth = True
+        # tfconfig.gpu_options.per_process_gpu_memory_fraction = 0.90
         sess = tf.Session(config=tfconfig)
 
         with sess.graph.as_default():
@@ -109,7 +110,7 @@ class Train:
             # We will handle the snapshots ourselves
             self.saver = tf.train.Saver(max_to_keep=100000)
             # Write the train and validation information to tensorboard
-            # writer = tf.summary.FileWriter(self.tbdir, sess.graph)
+            writer = tf.summary.FileWriter('default/', sess.graph)
             # valwriter = tf.summary.FileWriter(self.tbvaldir)
 
         # Load weights
@@ -120,7 +121,8 @@ class Train:
         sess.run(tf.variables_initializer(variables, name='init'))
         var_keep_dic = self.get_variables_in_checkpoint_file(cfg.FLAGS.pretrained_model)
         # Get the variables to restore, ignorizing the variables to fix
-        variables_to_restore = self.net.get_variables_to_restore(variables, var_keep_dic, sess, cfg.FLAGS.pretrained_model)
+        variables_to_restore = self.net.get_variables_to_restore(variables, var_keep_dic, sess,
+                                                                 cfg.FLAGS.pretrained_model)
 
         restorer = tf.train.Saver(variables_to_restore)
         restorer.restore(sess, cfg.FLAGS.pretrained_model)
@@ -136,6 +138,7 @@ class Train:
         timer = Timer()
         iter = last_snapshot_iter + 1
         last_summary_time = time.time()
+        print('START TRAINING: ...')
         while iter < cfg.FLAGS.max_iters + 1:
             # Learning rate
             if iter == cfg.FLAGS.step_size + 1:
@@ -146,11 +149,20 @@ class Train:
             timer.tic()
             # Get training data, one batch at a time
             blobs = self.data_layer.forward()
-
-            # Compute the graph without summary
-            rpn_loss_cls, rpn_loss_box, loss_cls, loss_box, total_loss = self.net.train_step(sess, blobs, train_op)
-            timer.toc()
             iter += 1
+            # Compute the graph without summary
+            if iter % 100 == 0:
+                rpn_loss_cls, rpn_loss_box, loss_cls, loss_box, total_loss, summary = self.net.train_step_with_summary(
+                    sess, blobs, train_op)
+                timer.toc()
+
+                run_metadata = tf.RunMetadata()
+                writer.add_run_metadata(run_metadata, 'step%03d' % iter)
+                writer.add_summary(summary, iter)
+            else:
+                rpn_loss_cls, rpn_loss_box, loss_cls, loss_box, total_loss = self.net.train_step(
+                    sess, blobs, train_op)
+                timer.toc()
 
             # Display training information
             if iter % (cfg.FLAGS.display) == 0:
@@ -160,7 +172,7 @@ class Train:
                 print('speed: {:.3f}s / iter'.format(timer.average_time))
 
             if iter % cfg.FLAGS.snapshot_iterations == 0:
-                self.snapshot(sess, iter )
+                self.snapshot(sess, iter)
 
     def get_variables_in_checkpoint_file(self, file_name):
         try:
