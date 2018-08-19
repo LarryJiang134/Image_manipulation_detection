@@ -1,5 +1,5 @@
 # Image_manipulation_detection
-Paper: CVPR2018, [Learning Rich Features for Image Manipulation Detection](Learning Rich Features for Image Manipulation Dection.pdf)  
+Paper: CVPR2018, [Learning Rich Features for Image Manipulation Detection](/Learning Rich Features for Image Manipulation Dection.pdf)  
 Code based on [Faster-RCNN](https://github.com/dBeker/Faster-RCNN-TensorFlow-Python3.5)  
 
 This is a rough implementation of the paper. Since I do not have a titan gpu, I made some modifications on the algorithm, but you can easily change them back if you want the exact setting from the paper.
@@ -13,7 +13,8 @@ TensorFlow 1.8.0
 The code requires a large memory GPU. If you do not have a 6G+ GPU, please reduce the number of noise stream conv layers for training.
 
 # Setup
-- two-stream neural network model: [lib/nets/vgg16.py](lib/nets/vgg16.py)
+- Download vgg16 pre-trained weights from [here](http://download.tensorflow.org/models/vgg_16_2016_08_28.tar.gz)
+- Two-stream neural network model: [lib/nets/vgg16.py](lib/nets/vgg16.py)
     - noise stream's weights are randomly initialized
     - for accurate prediction, please pre-train noise stream's vgg weights on `ImageNet` and overwrite the trainable setting of noise stream after `SRM` conv layer
 - Bounding boxes are predicted by both streams.
