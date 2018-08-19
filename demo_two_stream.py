@@ -1,10 +1,9 @@
-#!/usr/bin/env python
-
 # --------------------------------------------------------
 # Tensorflow Faster R-CNN
 # Licensed under The MIT License [see LICENSE for details]
 # Written by Hangyan Jiang, based on code from Ross Girshick
 # --------------------------------------------------------
+
 
 """
 Demo script showing detections in sample images.
@@ -32,7 +31,8 @@ from lib.utils.timer import Timer
 CLASSES = ('__background__',
            'tampered')
 
-NETS = {'vgg16': ('vgg16_faster_rcnn_iter_20000.ckpt',), 'res101': ('res101_faster_rcnn_iter_110000.ckpt',)}
+# PLEASE specify weight files dir for vgg16
+NETS = {'vgg16': ('vgg16_faster_rcnn_iter_30000.ckpt',), 'res101': ('res101_faster_rcnn_iter_110000.ckpt',)}
 DATASETS = {'pascal_voc': ('voc_2007_trainval',), 'pascal_voc_0712': ('voc_2007_trainval+voc_2012_trainval',)}
 
 
@@ -86,6 +86,7 @@ def demo(sess, net, image_name):
     # Visualize detections for each class
     CONF_THRESH = 0.1
     NMS_THRESH = 0.1
+
     for cls_ind, cls in enumerate(CLASSES[1:]):
         cls_ind += 1  # because we skipped background
         cls_boxes = boxes[:, 4 * cls_ind:4 * (cls_ind + 1)]
@@ -142,11 +143,10 @@ if __name__ == '__main__':
 
     print('Loaded network {:s}'.format(tfmodel))
 
-    im_names = ['111.jpg', '222.jpg', '333.jpg', '444.jpg', '555.jpg',
-                '666.jpg', '777.jpg', '888.jpg']
-    for im_name in im_names:
-        print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-        print('Demo for lib/layer_utils/{}'.format(im_name))
-        demo(sess, net, im_name)
+    for file in os.listdir("./lib/layer_utils"):
+        if file.endswith(".jpg"):
+            print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+            print('Demo for lib/layer_utils/{}'.format(file))
+            demo(sess, net, file)
 
     plt.show()

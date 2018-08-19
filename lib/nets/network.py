@@ -13,9 +13,9 @@ import tensorflow.contrib.slim as slim
 from tensorflow.contrib.slim import arg_scope
 
 from lib.config import config as cfg
-from lib.layer_utils.anchor_target_layer import anchor_target_layer
+# from lib.layer_utils.anchor_target_layer import anchor_target_layer
 from lib.layer_utils.proposal_layer import proposal_layer
-from lib.layer_utils.proposal_target_layer import proposal_target_layer
+# from lib.layer_utils.proposal_target_layer import proposal_target_layer
 from lib.layer_utils.proposal_top_layer import proposal_top_layer
 from lib.layer_utils.snippets import generate_anchors_pre
 
@@ -133,51 +133,51 @@ class Network(object):
     def _dropout_layer(self, bottom, name, ratio=0.5):
         return tf.nn.dropout(bottom, ratio, name=name)
 
-    def _anchor_target_layer(self, rpn_cls_score, name):
-        with tf.variable_scope(name):
-            rpn_labels, rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights = tf.py_func(
-                anchor_target_layer,
-                [rpn_cls_score, self._gt_boxes, self._im_info, self._feat_stride, self._anchors, self._num_anchors],
-                [tf.float32, tf.float32, tf.float32, tf.float32])
+    # def _anchor_target_layer(self, rpn_cls_score, name):
+    #     with tf.variable_scope(name):
+    #         rpn_labels, rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights = tf.py_func(
+    #             anchor_target_layer,
+    #             [rpn_cls_score, self._gt_boxes, self._im_info, self._feat_stride, self._anchors, self._num_anchors],
+    #             [tf.float32, tf.float32, tf.float32, tf.float32])
+    #
+    #         rpn_labels.set_shape([1, 1, None, None])
+    #         rpn_bbox_targets.set_shape([1, None, None, self._num_anchors * 4])
+    #         rpn_bbox_inside_weights.set_shape([1, None, None, self._num_anchors * 4])
+    #         rpn_bbox_outside_weights.set_shape([1, None, None, self._num_anchors * 4])
+    #
+    #         rpn_labels = tf.to_int32(rpn_labels, name="to_int32")
+    #         self._anchor_targets['rpn_labels'] = rpn_labels
+    #         self._anchor_targets['rpn_bbox_targets'] = rpn_bbox_targets
+    #         self._anchor_targets['rpn_bbox_inside_weights'] = rpn_bbox_inside_weights
+    #         self._anchor_targets['rpn_bbox_outside_weights'] = rpn_bbox_outside_weights
+    #
+    #         self._score_summaries.update(self._anchor_targets)
+    #
+    #     return rpn_labels
 
-            rpn_labels.set_shape([1, 1, None, None])
-            rpn_bbox_targets.set_shape([1, None, None, self._num_anchors * 4])
-            rpn_bbox_inside_weights.set_shape([1, None, None, self._num_anchors * 4])
-            rpn_bbox_outside_weights.set_shape([1, None, None, self._num_anchors * 4])
-
-            rpn_labels = tf.to_int32(rpn_labels, name="to_int32")
-            self._anchor_targets['rpn_labels'] = rpn_labels
-            self._anchor_targets['rpn_bbox_targets'] = rpn_bbox_targets
-            self._anchor_targets['rpn_bbox_inside_weights'] = rpn_bbox_inside_weights
-            self._anchor_targets['rpn_bbox_outside_weights'] = rpn_bbox_outside_weights
-
-            self._score_summaries.update(self._anchor_targets)
-
-        return rpn_labels
-
-    def _proposal_target_layer(self, rois, roi_scores, name):
-        with tf.variable_scope(name):
-            rois, roi_scores, labels, bbox_targets, bbox_inside_weights, bbox_outside_weights = tf.py_func(
-                proposal_target_layer,
-                [rois, roi_scores, self._gt_boxes, self._num_classes],
-                [tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.float32])
-
-            rois.set_shape([cfg.FLAGS.batch_size, 5])
-            roi_scores.set_shape([cfg.FLAGS.batch_size])
-            labels.set_shape([cfg.FLAGS.batch_size, 1])
-            bbox_targets.set_shape([cfg.FLAGS.batch_size, self._num_classes * 4])
-            bbox_inside_weights.set_shape([cfg.FLAGS.batch_size, self._num_classes * 4])
-            bbox_outside_weights.set_shape([cfg.FLAGS.batch_size, self._num_classes * 4])
-
-            self._proposal_targets['rois'] = rois
-            self._proposal_targets['labels'] = tf.to_int32(labels, name="to_int32")
-            self._proposal_targets['bbox_targets'] = bbox_targets
-            self._proposal_targets['bbox_inside_weights'] = bbox_inside_weights
-            self._proposal_targets['bbox_outside_weights'] = bbox_outside_weights
-
-            self._score_summaries.update(self._proposal_targets)
-
-            return rois, roi_scores
+    # def _proposal_target_layer(self, rois, roi_scores, name):
+    #     with tf.variable_scope(name):
+    #         rois, roi_scores, labels, bbox_targets, bbox_inside_weights, bbox_outside_weights = tf.py_func(
+    #             proposal_target_layer,
+    #             [rois, roi_scores, self._gt_boxes, self._num_classes],
+    #             [tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.float32])
+    #
+    #         rois.set_shape([cfg.FLAGS.batch_size, 5])
+    #         roi_scores.set_shape([cfg.FLAGS.batch_size])
+    #         labels.set_shape([cfg.FLAGS.batch_size, 1])
+    #         bbox_targets.set_shape([cfg.FLAGS.batch_size, self._num_classes * 4])
+    #         bbox_inside_weights.set_shape([cfg.FLAGS.batch_size, self._num_classes * 4])
+    #         bbox_outside_weights.set_shape([cfg.FLAGS.batch_size, self._num_classes * 4])
+    #
+    #         self._proposal_targets['rois'] = rois
+    #         self._proposal_targets['labels'] = tf.to_int32(labels, name="to_int32")
+    #         self._proposal_targets['bbox_targets'] = bbox_targets
+    #         self._proposal_targets['bbox_inside_weights'] = bbox_inside_weights
+    #         self._proposal_targets['bbox_outside_weights'] = bbox_outside_weights
+    #
+    #         self._score_summaries.update(self._proposal_targets)
+    #
+    #         return rois, roi_scores
 
     def _anchor_component(self):
         with tf.variable_scope('ANCHOR_' + 'default'):
