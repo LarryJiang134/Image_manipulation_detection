@@ -1,150 +1,130 @@
-#!/usr/bin/env python
-
 # --------------------------------------------------------
-# Tensorflow Faster R-CNN
+# PASCAL VOC Image manipulation detection dataset generator
 # Licensed under The MIT License [see LICENSE for details]
-# Written by Hangyan Jiang, based on code from Ross Girshick
+# Written by Hangyan Jiang
 # --------------------------------------------------------
-
-"""
-Demo script showing detections in sample images.
-
-See README.md for installation instructions before running.
-"""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import argparse
 import os
-
-import cv2
-import matplotlib.pyplot as plt
+from random import randint
+from PIL import Image
 import numpy as np
-import tensorflow as tf
-from lib.config import config as cfg
-from lib.utils.nms_wrapper import nms
-from lib.utils.test import im_detect
-#from nets.resnet_v1 import resnetv1
-from lib.nets.vgg16 import vgg16
-from lib.utils.timer import Timer
+from lib.datasets.factory import get_imdb
+from lib.datasets.xml_op import *
+import xml.etree.ElementTree as ET
+from shutil import copyfile
 
-CLASSES = ('__background__',
-           'tampered')
+DATASET_SIZE = 5011
 
-NETS = {'vgg16': ('vgg16_faster_rcnn_iter_30000.ckpt',), 'res101': ('res101_faster_rcnn_iter_110000.ckpt',)}
-DATASETS = {'pascal_voc': ('voc_2007_trainval',), 'pascal_voc_0712': ('voc_2007_trainval+voc_2012_trainval',)}
+dataset_path = os.sep.join(['data', 'VOCDevkit2007', 'VOC2007'])
+images_path = os.sep.join([dataset_path, 'JPEGImages'])
+image_annotation_path = os.sep.join([dataset_path, 'Annotations'])
 
+save_path = os.sep.join(['data', 'DIY_dataset', 'VOC2007'])
+save_imgage_path = os.sep.join([save_path, 'JPEGImages'])
+save_annotation_path = os.sep.join([save_path, 'Annotations'])
 
-def vis_detections(im, class_name, dets, thresh=0.5):
-    """Draw detected bounding boxes."""
-    inds = np.where(dets[:, -1] >= thresh)[0]
-    if len(inds) == 0:
-        return
+imdb = get_imdb("voc_2007_trainval")
+roidb = imdb.roidb
 
-    im = im[:, :, (2, 1, 0)]
-    fig, ax = plt.subplots(figsize=(12, 12))
-    ax.imshow(im, aspect='equal')
-    for i in inds:
-        bbox = dets[i, :4]
-        score = dets[i, -1]
-
-        ax.add_patch(
-            plt.Rectangle((bbox[0], bbox[1]),
-                          bbox[2] - bbox[0],
-                          bbox[3] - bbox[1], fill=False,
-                          edgecolor='red', linewidth=3.5)
-        )
-        ax.text(bbox[0], bbox[1] - 2,
-                '{:s} {:.3f}'.format(class_name, score),
-                bbox=dict(facecolor='blue', alpha=0.5),
-                fontsize=14, color='white')
-
-    ax.set_title(('{} detections with '
-                  'p({} | box) >= {:.1f}').format(class_name, class_name,
-                                                  thresh),
-                 fontsize=14)
-    plt.axis('off')
-    plt.tight_layout()
-    plt.draw()
+image_index = imdb._load_image_set_index()
+seg_index = imdb._load_seg_set_index()
 
 
-def demo(sess, net, image_name):
-    """Detect object classes in an image using pre-computed object proposals."""
-
-    # Load the demo image
-    im_file = os.path.join('lib/layer_utils', image_name)
-    im = cv2.imread(im_file)
-
-    # Detect all object classes and regress object bounds
-    timer = Timer()
-    timer.tic()
-    scores, boxes = im_detect(sess, net, im)
-    timer.toc()
-    print('Detection took {:.3f}s for {:d} object proposals'.format(timer.total_time, boxes.shape[0]))
-
-    # Visualize detections for each class
-    CONF_THRESH = 0.1
-    NMS_THRESH = 0.1
-    for cls_ind, cls in enumerate(CLASSES[1:]):
-        cls_ind += 1  # because we skipped background
-        cls_boxes = boxes[:, 4 * cls_ind:4 * (cls_ind + 1)]
-        cls_scores = scores[:, cls_ind]
-        dets = np.hstack((cls_boxes,
-                          cls_scores[:, np.newaxis])).astype(np.float32)
-        keep = nms(dets, NMS_THRESH)
-        dets = dets[keep, :]
-        vis_detections(im, cls, dets, thresh=CONF_THRESH)
+def generate_seg_img_map():
+    map = {}
+    idx1 = 0
+    for i in seg_index:
+        idx2 = 0
+        for j in image_index:
+            if i == j:
+                map[idx1] = idx2
+            idx2 += 1
+        idx1 += 1
+    return map
 
 
-def parse_args():
-    """Parse input arguments."""
-    parser = argparse.ArgumentParser(description='Tensorflow Faster R-CNN demo')
-    parser.add_argument('--net', dest='demo_net', help='Network to use [vgg16 res101]',
-                        choices=NETS.keys(), default='vgg16')
-    parser.add_argument('--dataset', dest='dataset', help='Trained dataset [pascal_voc pascal_voc_0712]',
-                        choices=DATASETS.keys(), default='pascal_voc_0712')
-    args = parser.parse_args()
+def random_seg_idx():
+    return randint(0, len(seg_index)-1)
 
-    return args
+
+def random_obj_idx(s):
+    return randint(1, len(s)-2)
+
+
+def random_obj_loc(img_h, img_w, obj_h, obj_w):
+    return randint(0, img_h - obj_h), randint(0, img_w - obj_w)
+
+
+def find_obj_vertex(mask):
+    hor = np.where(np.sum(mask, axis=0) > 0)
+    ver = np.where(np.sum(mask, axis=1) > 0)
+    return hor[0][0], hor[0][-1], ver[0][0], ver[0][-1]
+
+
+def modify_xml(filename, savefile, xmin, ymin, xmax, ymax):
+    def create_node(tag, property_map, content):
+        element = Element(tag, property_map)
+        element.text = content
+        return element
+    copyfile(filename, savefile)
+    tree = ET.parse(savefile)
+    root = tree.getroot()
+    for obj in root.findall('object'):
+        root.remove(obj)
+    new_obj = Element('object', {})
+    new_obj.append(create_node('name', {}, 'tampered'))
+    bndbox = Element('bndbox', {})
+    bndbox.append(create_node('xmin', {}, str(xmin)))
+    bndbox.append(create_node('ymin', {}, str(ymin)))
+    bndbox.append(create_node('xmax', {}, str(xmax)))
+    bndbox.append(create_node('ymax', {}, str(ymax)))
+    new_obj.append(bndbox)
+    root.append(new_obj)
+    tree.write(savefile)
 
 
 if __name__ == '__main__':
-    args = parse_args()
+    map = generate_seg_img_map()
+    count = 0
+    while count < DATASET_SIZE:
+        if count % 100 == 0:
+            print('>>> %d / %d' % (count, DATASET_SIZE))
+        img_idx = count % len(image_index)
+        seg_idx = random_seg_idx()
+        img = Image.open(imdb.image_path_at(img_idx))   # base img
+        seg = Image.open(imdb.seg_path_at(seg_idx)).convert('P')    # add-on object seg img picked randomly
+        seg_img = Image.open(imdb.image_path_at(map[seg_idx]))  # corresponding add-on object original img
 
-    # model path
-    demonet = args.demo_net
-    dataset = args.dataset
-    tfmodel = os.path.join('default', 'DIY_dataset', 'default', NETS[demonet][0])
-
-    if not os.path.isfile(tfmodel + '.meta'):
-        print(tfmodel)
-        raise IOError(('{:s} not found.\nDid you download the proper networks from '
-                       'our server and place them properly?').format(tfmodel + '.meta'))
-
-    # set config
-    tfconfig = tf.ConfigProto(allow_soft_placement=True)
-    tfconfig.gpu_options.allow_growth = True
-
-    # init session
-    sess = tf.Session(config=tfconfig)
-    # load network
-    if demonet == 'vgg16':
-        net = vgg16(batch_size=1)
-    # elif demonet == 'res101':
-        # net = resnetv1(batch_size=1, num_layers=101)
-    else:
-        raise NotImplementedError
-    net.create_architecture(sess, "TEST", 2,
-                            tag='default', anchor_scales=[8, 16, 32])
-    saver = tf.train.Saver()
-    saver.restore(sess, tfmodel)
-
-    print('Loaded network {:s}'.format(tfmodel))
-    for file in os.listdir("./lib/layer_utils"):
-        if file.endswith(".jpg"):
-            print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-            print('Demo for lib/layer_utils/{}'.format(file))
-            demo(sess, net, file)
-
-    plt.show()
+        seg_np = np.asarray(seg)
+        obj_idx = random_obj_idx(set(seg_np.flatten()))  # randomly pick an obj from seg img
+        mask2 = (seg_np == obj_idx)
+        min_x, max_x, min_y, max_y = find_obj_vertex(mask2)
+        loop_counter = 0
+        while(max_x - min_x) * (max_y - min_y) < img.size[0] * img.size[1] * 0.005 or \
+                (max_x - min_x) * (max_y - min_y) > img.size[0] * img.size[1] * 0.3 or \
+                max_x - min_x >= img.size[0] or max_y - min_y >= img.size[1] or loop_counter > 1000:
+            loop_counter += 1
+            seg_idx = random_seg_idx()
+            seg = Image.open(imdb.seg_path_at(seg_idx)).convert('P')
+            seg_img = Image.open(imdb.image_path_at(map[seg_idx]))
+            seg_np = np.asarray(seg)
+            obj_idx = random_obj_idx(set(seg_np.flatten()))
+            mask2 = (seg_np == obj_idx)
+            min_x, max_x, min_y, max_y = find_obj_vertex(mask2)
+        if loop_counter > 1000:
+            continue
+        mask2 = mask2[min_y:max_y, min_x:max_x]
+        mask = np.stack((mask2, mask2, mask2), axis=2)
+        seg_img_np = np.asarray(seg_img).copy()[min_y:max_y, min_x:max_x, :]
+        img_np = np.asarray(img).copy()
+        loc_y, loc_x = random_obj_loc(img.size[1], img.size[0], max_y - min_y, max_x - min_x)
+        img_np[loc_y:loc_y+max_y - min_y, loc_x:loc_x+max_x - min_x, :] = img_np[loc_y:loc_y+max_y - min_y, loc_x:loc_x+max_x - min_x, :] * (1-mask) + seg_img_np * mask
+        # seg_img_np *= mask
+        new_img = Image.fromarray(img_np, mode='RGB')
+        # img.paste(seg_img.resize((100, 100)), (0, 0))
+        # img.show()
+        # new_img.show()
+        new_img.save(os.sep.join([save_imgage_path, image_index[img_idx] + '.jpg']))  # save
+        modify_xml(os.sep.join([image_annotation_path, image_index[img_idx] + '.xml']),
+                   os.sep.join([save_annotation_path, image_index[img_idx] + '.xml']),
+                   loc_x+1, loc_y+1, loc_x+max_x - min_x, loc_y+max_y - min_y)
+        count += 1
