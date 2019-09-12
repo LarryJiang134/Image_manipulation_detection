@@ -163,6 +163,9 @@ venv.bak/
 
 # mkdocs documentation
 /site
+data/*
 
 # mypy
 .mypy_cache/
+
+*.abdullah-hp

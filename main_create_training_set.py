@@ -14,7 +14,7 @@ from shutil import copyfile
 
 DATASET_SIZE = 5011
 
-dataset_path = os.sep.join(['data', 'VOCDevkit2007', 'VOC2007'])
+dataset_path = os.sep.join(['data', 'VOCdevkit2007', 'VOC2007'])
 images_path = os.sep.join([dataset_path, 'JPEGImages'])
 image_annotation_path = os.sep.join([dataset_path, 'Annotations'])
 
